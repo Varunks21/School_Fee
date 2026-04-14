@@ -1,3 +1,5 @@
+from typing import Optional
+
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.class_fee import ClassFee
@@ -17,11 +19,11 @@ def get_fee_components(db: Session) -> list[FeeComponent]:
     return db.query(FeeComponent).order_by(FeeComponent.name.asc()).all()
 
 
-def get_class(db: Session, class_id: int) -> ClassModel | None:
+def get_class(db: Session, class_id: int) -> Optional[ClassModel]:
     return db.query(ClassModel).filter(ClassModel.id == class_id).first()
 
 
-def get_class_by_name(db: Session, name: str) -> ClassModel | None:
+def get_class_by_name(db: Session, name: str) -> Optional[ClassModel]:
     return db.query(ClassModel).filter(ClassModel.name.ilike(name)).first()
 
 

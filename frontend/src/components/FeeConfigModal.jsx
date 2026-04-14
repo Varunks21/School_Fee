@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   createClass,
   createFeeComponent,
@@ -8,12 +8,56 @@ import {
   saveClassFeeStructure,
 } from "../services/api";
 
+const DEFAULT_CLASS_TEMPLATE = [
+  { name: "Tuition", amount: 2500, priority: 1 },
+  { name: "Transport", amount: 1200, priority: 2 },
+  { name: "Library", amount: 400, priority: 3 },
+  { name: "Sports", amount: 600, priority: 4 },
+];
+const NEW_CLASS_OPTION = "__new_class__";
+
 const emptyRow = () => ({
   id: `draft-${Math.random().toString(36).slice(2, 10)}`,
   componentId: "",
   amount: "",
   priority: "",
 });
+
+function normalizeComponentName(value) {
+  return value.trim().toLowerCase();
+}
+
+async function ensureTemplateComponents(componentList) {
+  const nextComponents = [...componentList];
+
+  for (const templateItem of DEFAULT_CLASS_TEMPLATE) {
+    const exists = nextComponents.some(
+      (component) => normalizeComponentName(component.name) === normalizeComponentName(templateItem.name)
+    );
+
+    if (!exists) {
+      const createdComponent = await createFeeComponent({ name: templateItem.name });
+      nextComponents.push(createdComponent);
+    }
+  }
+
+  return nextComponents.sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function buildTemplateRows(componentList) {
+  return DEFAULT_CLASS_TEMPLATE.map((templateItem) => {
+    const matchedComponent = componentList.find(
+      (component) => normalizeComponentName(component.name) === normalizeComponentName(templateItem.name)
+    );
+
+    return {
+      id: `template-${normalizeComponentName(templateItem.name)}`,
+      componentId: matchedComponent ? String(matchedComponent.id) : "",
+      amount: String(templateItem.amount),
+      priority: String(templateItem.priority),
+    };
+  });
+}
 
 export default function FeeConfigModal({ classes, selectedClassId, intent, onClose, onSaved }) {
   const [activeClassId, setActiveClassId] = useState(selectedClassId ?? classes[0]?.id ?? "");
@@ -28,14 +72,46 @@ export default function FeeConfigModal({ classes, selectedClassId, intent, onClo
   const [className, setClassName] = useState("");
   const [classSubmitting, setClassSubmitting] = useState(false);
   const [classError, setClassError] = useState("");
-  const classInputRef = useState(null)[0];
+  const classInputRef = useRef(null);
 
+  const isAddClassIntent = intent === "add-class";
+  const isCreatingNewClass = isAddClassIntent && activeClassId === NEW_CLASS_OPTION;
   const selectedClass = classes.find((item) => item.id === activeClassId) ?? null;
+
+  useEffect(() => {
+    if (isAddClassIntent) {
+      setActiveClassId(selectedClassId || NEW_CLASS_OPTION);
+      return;
+    }
+
+    setActiveClassId(selectedClassId || classes[0]?.id || "");
+  }, [selectedClassId, classes, isAddClassIntent]);
 
   useEffect(() => {
     let active = true;
 
     async function loadModalData() {
+      if (!activeClassId || activeClassId === NEW_CLASS_OPTION) {
+        try {
+          const componentList = await fetchFeeComponents();
+          const preparedComponents = await ensureTemplateComponents(componentList);
+          if (!active) {
+            return;
+          }
+          setComponents(preparedComponents);
+          setRows(buildTemplateRows(preparedComponents));
+        } catch {
+          if (!active) {
+            return;
+          }
+          setComponents([]);
+          setRows(buildTemplateRows([]));
+        }
+        setError("");
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError("");
@@ -43,10 +119,11 @@ export default function FeeConfigModal({ classes, selectedClassId, intent, onClo
           fetchFeeComponents(),
           fetchClassFeeStructure(activeClassId),
         ]);
+        const preparedComponents = await ensureTemplateComponents(componentList);
         if (!active) {
           return;
         }
-        setComponents(componentList);
+        setComponents(preparedComponents);
         setRows(
           structure.length
             ? structure.map((item) => ({
@@ -55,7 +132,7 @@ export default function FeeConfigModal({ classes, selectedClassId, intent, onClo
                 amount: String(item.amount),
                 priority: String(item.priority),
               }))
-            : [emptyRow()]
+            : buildTemplateRows(preparedComponents)
         );
       } catch (loadError) {
         if (!active) {
@@ -69,9 +146,7 @@ export default function FeeConfigModal({ classes, selectedClassId, intent, onClo
       }
     }
 
-    if (activeClassId) {
-      loadModalData();
-    }
+    loadModalData();
 
     return () => {
       active = false;
@@ -79,12 +154,12 @@ export default function FeeConfigModal({ classes, selectedClassId, intent, onClo
   }, [activeClassId]);
 
   useEffect(() => {
-    if (intent === "add-class") {
+    if (isCreatingNewClass) {
       setTimeout(() => {
-        classInputRef?.focus?.();
+        classInputRef.current?.focus();
       }, 0);
     }
-  }, [intent, classInputRef]);
+  }, [isCreatingNewClass]);
 
   function updateRow(rowId, key, value) {
     setRows((current) => current.map((row) => (row.id === rowId ? { ...row, [key]: value } : row)));
@@ -117,30 +192,6 @@ export default function FeeConfigModal({ classes, selectedClassId, intent, onClo
       setComponentError(submitError.message || "Unable to create fee component");
     } finally {
       setComponentSubmitting(false);
-    }
-  }
-
-  async function handleCreateClass(event) {
-    event.preventDefault();
-    if (!className.trim()) {
-      return;
-    }
-
-    try {
-      setClassSubmitting(true);
-      setClassError("");
-      const newClass = await createClass({ name: className.trim() });
-      const refreshedClasses = await onSaved(newClass.id);
-      setActiveClassId(
-        refreshedClasses?.some((item) => String(item.id) === String(newClass.id))
-          ? String(newClass.id)
-          : String(newClass.id)
-      );
-      setClassName("");
-    } catch (submitError) {
-      setClassError(submitError.message || "Unable to create class");
-    } finally {
-      setClassSubmitting(false);
     }
   }
 
@@ -181,16 +232,38 @@ export default function FeeConfigModal({ classes, selectedClassId, intent, onClo
     try {
       setSaving(true);
       setError("");
+      setClassError("");
+      let classIdToSave = activeClassId;
+
+      if (activeClassId === NEW_CLASS_OPTION) {
+        if (!className.trim()) {
+          setError("Enter the new class name before saving");
+          return;
+        }
+
+        setClassSubmitting(true);
+        const newClass = await createClass({ name: className.trim() });
+        classIdToSave = String(newClass.id);
+        setActiveClassId(classIdToSave);
+      }
+
       await saveClassFeeStructure({
-        classId: activeClassId,
+        classId: classIdToSave,
         fees: normalizedRows,
       });
-      await onSaved(activeClassId);
+      await onSaved(classIdToSave);
+      setClassName("");
       onClose();
     } catch (saveError) {
-      setError(saveError.message || "Unable to save fee structure");
+      const message = saveError.message || "Unable to save fee structure";
+      if (activeClassId === NEW_CLASS_OPTION) {
+        setClassError(message);
+      } else {
+        setError(message);
+      }
     } finally {
       setSaving(false);
+      setClassSubmitting(false);
     }
   }
 
@@ -202,7 +275,7 @@ export default function FeeConfigModal({ classes, selectedClassId, intent, onClo
         <div className="modal-header">
           <div>
             <p className="eyebrow">Fee Setup</p>
-            <h2>Configure components for each standard</h2>
+            <h2>{isAddClassIntent ? "Create a class with a starter fee template" : "Edit fee setup for an existing class"}</h2>
           </div>
           <button className="icon-button muted-button" type="button" onClick={onClose}>
             x
@@ -211,8 +284,9 @@ export default function FeeConfigModal({ classes, selectedClassId, intent, onClo
 
         <div className="fee-config-toolbar">
           <label className="search-field">
-            <span>Standard / Class</span>
+            <span>{isAddClassIntent ? "Selected class" : "Choose class to edit"}</span>
             <select value={activeClassId} onChange={(event) => setActiveClassId(event.target.value)}>
+              {isAddClassIntent ? <option value={NEW_CLASS_OPTION}>New class</option> : null}
               {classes.map((classroom) => (
                 <option key={classroom.id} value={classroom.id}>
                   {classroom.name}
@@ -221,6 +295,20 @@ export default function FeeConfigModal({ classes, selectedClassId, intent, onClo
             </select>
           </label>
 
+          {isCreatingNewClass ? (
+            <div className="toolbar-class-creator">
+              <label className="search-field">
+                <span>New class name</span>
+                <input
+                  ref={classInputRef}
+                  value={className}
+                  onChange={(event) => setClassName(event.target.value)}
+                  placeholder="Example: Class 6, Grade 10, UKG"
+                />
+              </label>
+            </div>
+          ) : null}
+
           <div className="fee-config-summary">
             <span>Configured total</span>
             <strong>{currencyFormatter.format(totalConfigured)}</strong>
@@ -228,40 +316,32 @@ export default function FeeConfigModal({ classes, selectedClassId, intent, onClo
           </div>
         </div>
 
-        <form className="component-creator" onSubmit={handleCreateClass}>
-          <label>
-            <span>Add new class / standard</span>
-            <input
-              ref={(node) => {
-                if (node) {
-                  classInputRef.focus = () => node.focus();
-                }
-              }}
-              value={className}
-              onChange={(event) => setClassName(event.target.value)}
-              placeholder="Example: Class 6, Grade 10, UKG"
-            />
-          </label>
-          <button className="ghost-button" type="submit" disabled={classSubmitting}>
-            {classSubmitting ? "Creating..." : "Add class"}
-          </button>
-        </form>
-        {classError ? <div className="form-error">{classError}</div> : null}
+        {isAddClassIntent ? (
+          classError ? <div className="form-error">{classError}</div> : null
+        ) : (
+          <div className="form-note">
+            Select a previously added class above, then update its components, change amounts, or remove rows before saving.
+          </div>
+        )}
 
-        <form className="component-creator" onSubmit={handleCreateComponent}>
-          <label>
-            <span>Create fee component</span>
-            <input
-              value={componentName}
-              onChange={(event) => setComponentName(event.target.value)}
-              placeholder="Example: Tuition, Transport, Exam Fee"
-            />
-          </label>
-          <button className="ghost-button" type="submit" disabled={componentSubmitting}>
-            {componentSubmitting ? "Creating..." : "Add component"}
-          </button>
-        </form>
-        {componentError ? <div className="form-error">{componentError}</div> : null}
+        {!isAddClassIntent ? (
+          <>
+            <form className="component-creator" onSubmit={handleCreateComponent}>
+              <label>
+                <span>Create fee component</span>
+                <input
+                  value={componentName}
+                  onChange={(event) => setComponentName(event.target.value)}
+                  placeholder="Example: Tuition, Transport, Exam Fee"
+                />
+              </label>
+              <button className="ghost-button" type="submit" disabled={componentSubmitting}>
+                {componentSubmitting ? "Creating..." : "Add component"}
+              </button>
+            </form>
+            {componentError ? <div className="form-error">{componentError}</div> : null}
+          </>
+        ) : null}
 
         {loading ? (
           <div className="inline-empty">
@@ -285,6 +365,7 @@ export default function FeeConfigModal({ classes, selectedClassId, intent, onClo
                         value={row.componentId}
                         onChange={(event) => updateRow(row.id, "componentId", event.target.value)}
                         required
+                        disabled={!activeClassId}
                       >
                         <option value="">Select component</option>
                         {components.map((component) => (
@@ -302,6 +383,7 @@ export default function FeeConfigModal({ classes, selectedClassId, intent, onClo
                         onChange={(event) => updateRow(row.id, "amount", event.target.value)}
                         placeholder="0"
                         required
+                        disabled={!activeClassId}
                       />
                     </label>
                     <label>
@@ -312,9 +394,15 @@ export default function FeeConfigModal({ classes, selectedClassId, intent, onClo
                         onChange={(event) => updateRow(row.id, "priority", event.target.value)}
                         placeholder="1"
                         required
+                        disabled={!activeClassId}
                       />
                     </label>
-                    <button className="ghost-button danger-button" type="button" onClick={() => removeRow(row.id)}>
+                    <button
+                      className="ghost-button danger-button"
+                      type="button"
+                      onClick={() => removeRow(row.id)}
+                      disabled={!activeClassId}
+                    >
                       Remove
                     </button>
                   </div>
@@ -323,7 +411,12 @@ export default function FeeConfigModal({ classes, selectedClassId, intent, onClo
             </div>
 
             <div className="fee-config-actions">
-              <button className="ghost-button" type="button" onClick={addRow}>
+              <button
+                className="ghost-button"
+                type="button"
+                onClick={addRow}
+                disabled={!activeClassId}
+              >
                 Add row
               </button>
               <div className="form-note">
@@ -337,8 +430,12 @@ export default function FeeConfigModal({ classes, selectedClassId, intent, onClo
               <button className="ghost-button" type="button" onClick={onClose} disabled={saving}>
                 Cancel
               </button>
-              <button className="primary-button" type="submit" disabled={saving}>
-                {saving ? "Saving..." : "Save fee structure"}
+              <button className="primary-button" type="submit" disabled={saving || classSubmitting}>
+                {saving || classSubmitting
+                  ? "Saving..."
+                  : isCreatingNewClass
+                    ? "Create class and save"
+                    : "Save fee structure"}
               </button>
             </div>
           </form>

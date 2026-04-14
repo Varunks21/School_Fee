@@ -8,6 +8,8 @@ venv/
 !.env.example
 backend/*.log
 frontend/*.log
+frontend/*.err
+frontend/*.err.log
 
 # Node
 node_modules/

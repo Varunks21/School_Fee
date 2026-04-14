@@ -1,5 +1,6 @@
 from collections import defaultdict
 from decimal import Decimal
+from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -26,11 +27,11 @@ def update_student(db: Session, student: Student, payload: dict) -> Student:
     return get_student(db, student.id)
 
 
-def get_student_by_admission_no(db: Session, admission_no: str) -> Student | None:
+def get_student_by_admission_no(db: Session, admission_no: str) -> Optional[Student]:
     return db.query(Student).filter(Student.admission_no == admission_no).first()
 
 
-def get_student(db: Session, student_id: int) -> Student | None:
+def get_student(db: Session, student_id: int) -> Optional[Student]:
     return (
         db.query(Student)
         .options(
@@ -43,7 +44,7 @@ def get_student(db: Session, student_id: int) -> Student | None:
     )
 
 
-def get_student_detail_payload(db: Session, student_id: int) -> dict | None:
+def get_student_detail_payload(db: Session, student_id: int) -> Optional[dict]:
     student = get_student(db, student_id)
     if not student:
         return None

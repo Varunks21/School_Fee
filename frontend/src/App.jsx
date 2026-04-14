@@ -43,7 +43,6 @@ export default function App() {
   }, []);
 
   async function reloadClasses(preferredClassId = selectedClassId) {
-    setLoading(true);
     setError("");
     try {
       const response = await fetchClasses();
@@ -57,8 +56,6 @@ export default function App() {
     } catch (loadError) {
       setError(loadError.message || "Unable to load dashboard data");
       throw loadError;
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -82,17 +79,6 @@ export default function App() {
           <button className="primary-button" type="button" onClick={() => window.location.reload()}>
             Retry
           </button>
-        </section>
-      </main>
-    );
-  }
-
-  if (!classes.length) {
-    return (
-      <main className="app-shell">
-        <section className="page panel empty-state">
-          <p className="eyebrow">No classes yet</p>
-          <h1>The backend is connected, but there are no classes to display yet.</h1>
         </section>
       </main>
     );

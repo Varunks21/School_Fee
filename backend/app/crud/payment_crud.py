@@ -1,3 +1,5 @@
+from typing import Optional
+
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.allocation import Allocation
@@ -13,7 +15,7 @@ def create_payment(db: Session, student_id: int, amount: int, payment_mode: str)
     return payment
 
 
-def get_payment(db: Session, payment_id: int) -> Payment | None:
+def get_payment(db: Session, payment_id: int) -> Optional[Payment]:
     return (
         db.query(Payment)
         .options(joinedload(Payment.allocations).joinedload(Allocation.fee_component))

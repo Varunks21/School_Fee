@@ -6,19 +6,27 @@ import { getClassRows, getDashboardMetrics } from "../services/api";
 export default function Dashboard({ classes, onSelectClass, onRefreshClasses }) {
   const metrics = getDashboardMetrics(classes);
   const rows = getClassRows(classes);
+  const [isConfigModalOpen, setIsConfigModalOpen] = React.useState(false);
   const [configClassId, setConfigClassId] = React.useState(null);
   const [modalIntent, setModalIntent] = React.useState("configure");
+
+  function openConfigModal(intent, classId = null) {
+    setModalIntent(intent);
+    setConfigClassId(classId ?? "");
+    setIsConfigModalOpen(true);
+  }
+
+  function closeConfigModal() {
+    setIsConfigModalOpen(false);
+    setConfigClassId(null);
+  }
 
   return (
     <div className="page dashboard-page">
       <section className="hero-banner panel">
         <div>
-          <p className="eyebrow">School Fee Dashboard</p>
-          <h1>Track collections, class performance, and payment follow-up from one place.</h1>
+          <h1>School Fee Dashboard</h1>
         </div>
-        <button className="primary-button" type="button" onClick={() => setConfigClassId(classes[0]?.id ?? null)}>
-          Configure standards
-        </button>
       </section>
 
       <section className="kpi-grid">
@@ -34,22 +42,16 @@ export default function Dashboard({ classes, onSelectClass, onRefreshClasses }) 
       <FeeTable
         rows={rows}
         onSelectClass={onSelectClass}
-        onConfigureFees={(classId) => {
-          setModalIntent("configure");
-          setConfigClassId(classId);
-        }}
-        onAddClass={() => {
-          setModalIntent("add-class");
-          setConfigClassId(rows[0]?.id ?? classes[0]?.id ?? null);
-        }}
+        onConfigureFees={(classId) => openConfigModal("configure", classId)}
+        onAddClass={() => openConfigModal("add-class", rows[0]?.id ?? classes[0]?.id ?? null)}
       />
 
-      {configClassId ? (
+      {isConfigModalOpen ? (
         <FeeConfigModal
           classes={rows}
           selectedClassId={configClassId}
           intent={modalIntent}
-          onClose={() => setConfigClassId(null)}
+          onClose={closeConfigModal}
           onSaved={onRefreshClasses}
         />
       ) : null}
