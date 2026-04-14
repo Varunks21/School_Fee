@@ -1,9 +1,3 @@
-Got it — here is your **clean, final, professional documentation** with the new API included 👇
-
----
-
-# 📘 📌 FINAL PROJECT DOCUMENTATION
-
 # 🎓 School Fee Management System
 
 ---
