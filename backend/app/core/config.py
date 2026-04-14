@@ -1,11 +1,15 @@
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+
+BASE_DIR = Path(__file__).resolve().parents[2]
+load_dotenv(BASE_DIR / ".env")
 
 
 class Settings:
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        "postgresql://neondb_owner:npg_zE4lGsCKHym9@ep-green-snow-a7sf3zr2-pooler.ap-southeast-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
-    )
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./school_fee.db")
 
 
 settings = Settings()

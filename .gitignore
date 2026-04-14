@@ -4,6 +4,10 @@ __pycache__/
 .venv/
 venv/
 .env
+.env.*
+!.env.example
+backend/*.log
+frontend/*.log
 
 # Node
 node_modules/
