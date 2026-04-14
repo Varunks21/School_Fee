@@ -1,0 +1,365 @@
+Got it — here is your **clean, final, professional documentation** with the new API included 👇
+
+---
+
+# 📘 📌 FINAL PROJECT DOCUMENTATION
+
+# 🎓 School Fee Management System
+
+---
+
+## 🧠 1. Introduction
+
+The **School Fee Management System** is a software application designed to automate fee collection, tracking, and allocation for students.
+
+It replaces manual fee handling with a **digital, transparent, and scalable system** that:
+
+* Tracks student fees
+* Handles flexible payments
+* Automatically allocates payments
+* Maintains complete financial records
+
+---
+
+## 🎯 2. Objective
+
+The system is designed to:
+
+* Allow **flexible payments** (any amount)
+* Automatically allocate payments across fee components
+* Track:
+
+  * Total fee
+  * Paid amount
+  * Remaining balance
+* Maintain a **complete audit trail**
+* Support **class-wise dynamic fee configuration**
+
+---
+
+## ⚙️ 3. Key Features
+
+### ✅ Core Features
+
+* Class-based fee structure
+* Multiple fee components (Tuition, Transport, etc.)
+* Priority-based payment allocation
+* Partial payment support
+* Payment history tracking
+
+### ✅ Advanced Features
+
+* Real-time balance calculation
+* Automatic payment splitting
+* Class-specific fee customization
+* Scalable architecture for future expansion
+
+---
+
+## 🧱 4. System Architecture
+
+### 🏗️ High-Level Design
+
+```
+Frontend (React)
+        ↓
+Backend API (FastAPI)
+        ↓
+Database (PostgreSQL)
+```
+
+### 🔹 Description
+
+* **Frontend (React):** User interface for admins and students
+* **Backend (FastAPI):** Handles business logic and APIs
+* **Database (PostgreSQL):** Stores structured financial data
+
+---
+
+## 🗄️ 5. Database Design
+
+### 📌 Tables
+
+1. **students**
+   Stores student details
+
+2. **classes**
+   Stores class information
+
+3. **fee_components**
+   Defines global fee types (Tuition, Transport, etc.)
+
+4. **class_fee_structure ⭐**
+   Defines:
+
+   * Fee amount per class
+   * Applicable components
+   * Priority order
+
+5. **payments**
+   Stores each payment made
+
+6. **payment_allocations ⭐**
+   Stores how each payment is distributed across components
+
+---
+
+### 🧠 Key Design Concepts
+
+#### ✅ Separation of Concerns
+
+* `fee_components` → global definitions
+* `class_fee_structure` → class-specific configuration
+
+#### ✅ Allocation Tracking
+
+* Every payment is broken down and stored in `payment_allocations`
+
+---
+
+## 🔄 6. Core Business Logic
+
+### 🎯 Payment Allocation Logic
+
+When a student makes a payment:
+
+1. Fetch class fee structure (sorted by priority)
+2. Calculate remaining due for each component
+3. Allocate payment accordingly
+
+---
+
+### 🧾 Algorithm
+
+```
+remaining = payment_amount
+
+FOR each component (priority order):
+    due = total - paid
+
+    IF remaining >= due:
+        allocate = due
+    ELSE:
+        allocate = remaining
+
+    save allocation
+    remaining -= allocate
+
+    IF remaining == 0:
+        BREAK
+```
+
+---
+
+### 💡 Example
+
+| Component | Total | Allocated |
+| --------- | ----- | --------- |
+| Tuition   | 2000  | 2000      |
+| Transport | 1000  | 1000      |
+| Library   | 500   | 500       |
+
+**Payment:** ₹3500 → Fully distributed
+
+---
+
+## 🔗 7. Backend Design (FastAPI)
+
+### 📁 Structure
+
+```
+backend/
+ ├── models/
+ ├── schemas/
+ ├── crud/
+ ├── services/
+ ├── api/
+ └── main.py
+```
+
+---
+
+### 🔥 Core Service
+
+**allocation_service.py**
+
+* Handles payment distribution logic
+* Implements priority-based allocation
+
+---
+
+## 📡 8. API Endpoints
+
+---
+
+### 💳 Payment APIs
+
+#### ➤ Create Payment
+
+```
+POST /payments/pay
+```
+
+#### ➤ Get Student Details
+
+```
+GET /students/{id}
+```
+
+---
+
+### 🧱 Fee Structure APIs (NEW)
+
+#### ➤ Create Class Fee Structure
+
+```
+POST /class-fee-structure
+```
+
+**Request Body:**
+
+```json
+{
+  "class_id": 1,
+  "fees": [
+    {
+      "component_id": 1,
+      "amount": 2000,
+      "priority": 1
+    },
+    {
+      "component_id": 2,
+      "amount": 1000,
+      "priority": 2
+    }
+  ]
+}
+```
+
+---
+
+#### ➤ Update Class Fee Structure
+
+```
+PUT /class-fee-structure/{class_id}
+```
+
+👉 Recommended approach:
+
+* Delete existing records
+* Insert updated structure
+
+---
+
+#### ➤ Get Class Fee Structure
+
+```
+GET /class-fee-structure/{class_id}
+```
+
+---
+
+### 🧾 Fee Component API (Optional)
+
+#### ➤ Create Fee Component
+
+```
+POST /fee-components
+```
+
+#### ➤ Get All Components
+
+```
+GET /fee-components
+```
+
+---
+
+## 🎨 9. Frontend Design (React)
+
+### 📁 Structure
+
+```
+frontend/
+ ├── components/
+ ├── pages/
+ ├── services/
+ └── App.jsx
+```
+
+---
+
+### 📄 Main Pages
+
+#### 👤 StudentPage.jsx
+
+* Displays:
+
+  * Student info
+  * Fee breakdown
+  * Payment history
+
+#### 💳 PaymentPage.jsx
+
+* Input payment amount
+* Calls payment API
+* Displays updated balance
+
+---
+
+## 🔄 10. System Workflow
+
+### Step-by-Step Flow
+
+1. Admin defines fee components
+2. Admin creates class fee structure
+3. Student is assigned to a class
+4. System calculates total fees
+5. Student makes payment
+6. Backend:
+
+   * Stores payment
+   * Allocates across components
+7. UI updates:
+
+   * Paid amount
+   * Remaining balance
+
+---
+
+## 📊 11. Sample Data Flow
+
+**Input:**
+Payment → ₹3500
+
+**Output Allocation:**
+
+* Tuition → 2000
+* Transport → 1000
+* Library → 500
+
+---
+
+## 💡 12. Advantages
+
+* Eliminates manual errors
+* Transparent fee tracking
+* Flexible payment handling
+* Scalable system design
+* Supports dynamic fee configuration per class
+
+---
+
+## 🏁 13. Conclusion
+
+This system provides a **robust and scalable solution** for managing school fees with:
+
+* Clean architecture
+* Strong database normalization
+* Efficient allocation logic
+* Dynamic class-wise configuration
+
+It demonstrates **real-world backend engineering**, not just CRUD operations.
+
+---
+
