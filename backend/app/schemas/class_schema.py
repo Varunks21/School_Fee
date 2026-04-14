@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
 
@@ -11,7 +13,7 @@ class ClassStudentSummaryRead(BaseModel):
     total_fee: int
     total_paid: int
     total_balance: int
-    last_payment_date: str | None
+    last_payment_date: Optional[str]
 
 
 class ClassSummaryRead(BaseModel):

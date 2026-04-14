@@ -468,13 +468,16 @@ button {
   display: grid;
   place-items: center;
   padding: 20px;
+  overflow-y: auto;
   background: rgba(17, 26, 46, 0.36);
   z-index: 20;
 }
 
 .modal-card {
   width: min(720px, 100%);
+  max-height: calc(100vh - 40px);
   padding: 24px;
+  overflow-y: auto;
 }
 
 .fee-config-modal {
@@ -559,9 +562,16 @@ button {
 
 .fee-config-toolbar {
   display: grid;
-  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 280px) minmax(260px, 1fr) minmax(0, 1fr);
   gap: 18px;
   margin-top: 20px;
+}
+
+.toolbar-class-creator {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
 }
 
 .fee-config-summary {
